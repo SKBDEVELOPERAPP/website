@@ -1,1 +1,279 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive 3D Business Card</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    background: #101014;
+    color: white;
+    font-family: Arial, sans-serif;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    font-size: clamp(22px, 4vw, 34px);
+    text-align: center;
+  }
+
+  .upload-area {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    padding: 0 16px;
+  }
+
+  .upload-area label,
+  button {
+    background: #292932;
+    color: white;
+    border: 1px solid #555562;
+    border-radius: 10px;
+    padding: 12px 16px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .upload-area label:hover,
+  button:hover {
+    background: #414151;
+  }
+
+  .upload-area input {
+    display: none;
+  }
+
+  .scene {
+    width: min(82vw, 520px);
+    aspect-ratio: 1.75 / 1;
+    perspective: 1200px;
+    cursor: grab;
+    touch-action: pan-y;
+  }
+
+  .scene:active {
+    cursor: grabbing;
+  }
+
+  .card {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(0deg) rotateY(0deg);
+    transition: transform 0.15s ease-out;
+  }
+
+  .card.auto-spin {
+    animation: spin 5s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotateX(0deg) rotateY(0deg);
+    }
+    to {
+      transform: rotateX(0deg) rotateY(360deg);
+    }
+  }
+
+  .face {
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #22222a;
+    border: 1px solid #ffffff35;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    box-shadow: 0 20px 55px #0008;
+  }
+
+  .face img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    background: #22222a;
+  }
+
+  .back {
+    transform: rotateY(180deg);
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 16px;
+  }
+
+  .hint {
+    color: #aaaab5;
+    font-size: 13px;
+    text-align: center;
+    padding: 0 16px;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>My 3D Business Card</h1>
+
+<div class="upload-area">
+  <label>
+    Upload Front
+    <input type="file" id="frontUpload" accept="image/*">
+  </label>
+
+  <label>
+    Upload Back
+    <input type="file" id="backUpload" accept="image/*">
+  </label>
+</div>
+
+<div class="scene" id="scene">
+  <div class="card" id="card">
+
+    <div class="face front">
+      <img id="frontImage"
+           src="front.png"
+           alt="Front of business card">
+    </div>
+
+    <div class="face back">
+      <img id="backImage"
+           src="back.png"
+           alt="Back of business card">
+    </div>
+
+  </div>
+</div>
+
+<div class="controls">
+  <button id="flipBtn">Flip Card</button>
+  <button id="spinBtn">360° Spin</button>
+  <button id="resetBtn">Reset</button>
+</div>
+
+<p class="hint">
+  Drag the card to rotate it. Upload your designs above.
+</p>
+
+<script>
+  const card = document.getElementById("card");
+  const scene = document.getElementById("scene");
+
+  let rotateX = 0;
+  let rotateY = 0;
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  function updateRotation() {
+    card.style.transform =
+      `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+  }
+
+  // Upload the front and back designs
+  function loadImage(inputId, imageId) {
+    document.getElementById(inputId).addEventListener(
+      "change", function () {
+        const file = this.files[0];
+        if (!file) return;
+
+        const imageURL = URL.createObjectURL(file);
+        const image = document.getElementById(imageId);
+
+        image.onload = () => URL.revokeObjectURL(imageURL);
+        image.src = imageURL;
+      }
+    );
+  }
+
+  loadImage("frontUpload", "frontImage");
+  loadImage("backUpload", "backImage");
+
+  // Flip 180 degrees
+  document.getElementById("flipBtn").onclick = () => {
+    card.classList.remove("auto-spin");
+    rotateY += 180;
+    updateRotation();
+  };
+
+  // Continuously rotate through 360 degrees
+  document.getElementById("spinBtn").onclick = () => {
+    const spinning = card.classList.contains("auto-spin");
+
+    card.classList.toggle("auto-spin", !spinning);
+
+    if (!spinning) {
+      card.style.transform = "";
+    } else {
+      rotateX = 0;
+      rotateY = 0;
+      updateRotation();
+    }
+  };
+
+  // Reset to the front
+  document.getElementById("resetBtn").onclick = () => {
+    card.classList.remove("auto-spin");
+    rotateX = 0;
+    rotateY = 0;
+    updateRotation();
+  };
+
+  // Click and drag to rotate in 3D
+  scene.addEventListener("pointerdown", (e) => {
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    scene.setPointerCapture(e.pointerId);
+    card.classList.remove("auto-spin");
+    card.style.transition = "none";
+  });
+
+  scene.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+
+    rotateY += dx * 0.8;
+    rotateX -= dy * 0.8;
+
+    lastX = e.clientX;
+    lastY = e.clientY;
+
+    updateRotation();
+  });
+
+  function stopDragging() {
+    dragging = false;
+    card.style.transition = "transform 0.15s ease-out";
+  }
+
+  scene.addEventListener("pointerup", stopDragging);
+  scene.addEventListener("pointercancel", stopDragging);
+</script>
+
+</body>
+</html>
