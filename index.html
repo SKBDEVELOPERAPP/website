@@ -23,23 +23,18 @@ html, body {
 
 body {
   touch-action: none;
-  cursor: grab;
   user-select: none;
   -webkit-user-select: none;
-}
-
-body:active {
-  cursor: grabbing;
 }
 
 .card {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
   transform-style: preserve-3d;
+  transform-origin: center;
   cursor: grab;
-  will-change: left, top, transform;
+  will-change: transform;
 }
 
 .card:active {
@@ -74,6 +69,7 @@ body:active {
   <div class="face">
     <img id="front" src="front.png" alt="">
   </div>
+
   <div class="face back">
     <img id="back" src="back.png" alt="">
   </div>
@@ -84,15 +80,9 @@ const card = document.getElementById("card");
 const front = document.getElementById("front");
 const back = document.getElementById("back");
 
-let x = window.innerWidth / 2;
-let y = window.innerHeight / 2;
-
 let rotationX = 0;
 let rotationY = 0;
-
 let dragging = false;
-let startX = 0;
-let startY = 0;
 let lastX = 0;
 let lastY = 0;
 
@@ -100,11 +90,11 @@ function sizeCard() {
   const width = front.naturalWidth || 900;
   const height = front.naturalHeight || 500;
 
-  // Fit the original image proportions on screen
+  // Smaller card with its original proportions preserved
   const scale = Math.min(
-    1,
-    window.innerWidth * 0.85 / width,
-    window.innerHeight * 0.85 / height
+    0.75,
+    window.innerWidth * 0.75 / width,
+    window.innerHeight * 0.75 / height
   );
 
   card.style.width = `${width * scale}px`;
@@ -114,23 +104,20 @@ function sizeCard() {
 }
 
 function updateCard() {
-  card.style.left = `${x}px`;
-  card.style.top = `${y}px`;
   card.style.transform =
     `translate(-50%, -50%) rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
 }
 
 front.addEventListener("load", sizeCard);
 back.addEventListener("load", sizeCard);
-
-if (front.complete && front.naturalWidth) sizeCard();
-
 window.addEventListener("resize", sizeCard);
+
+if (front.complete && front.naturalWidth) {
+  sizeCard();
+}
 
 card.addEventListener("pointerdown", (e) => {
   dragging = true;
-  startX = e.clientX;
-  startY = e.clientY;
   lastX = e.clientX;
   lastY = e.clientY;
 
@@ -143,11 +130,7 @@ card.addEventListener("pointermove", (e) => {
   const dx = e.clientX - lastX;
   const dy = e.clientY - lastY;
 
-  // Move the card across the white canvas
-  x += dx;
-  y += dy;
-
-  // Rotate as you drag
+  // Rotate without moving the card's position
   rotationY += dx * 0.6;
   rotationX -= dy * 0.6;
 
