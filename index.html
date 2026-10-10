@@ -4,275 +4,165 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Interactive 3D Business Card</title>
+
+<title>3D Business Card</title>
 
 <style>
-  * {
-    box-sizing: border-box;
-  }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-  body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 24px;
-    background: #101014;
-    color: white;
-    font-family: Arial, sans-serif;
-    overflow-x: hidden;
-  }
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: white;
+}
 
-  h1 {
-    font-size: clamp(22px, 4vw, 34px);
-    text-align: center;
-  }
+body {
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
 
-  .upload-area {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px;
-    padding: 0 16px;
-  }
+body:active {
+  cursor: grabbing;
+}
 
-  .upload-area label,
-  button {
-    background: #292932;
-    color: white;
-    border: 1px solid #555562;
-    border-radius: 10px;
-    padding: 12px 16px;
-    cursor: pointer;
-    font-size: 14px;
-  }
+.card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transform-style: preserve-3d;
+  cursor: grab;
+  will-change: left, top, transform;
+}
 
-  .upload-area label:hover,
-  button:hover {
-    background: #414151;
-  }
+.card:active {
+  cursor: grabbing;
+}
 
-  .upload-area input {
-    display: none;
-  }
+.face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
 
-  .scene {
-    width: min(82vw, 520px);
-    aspect-ratio: 1.75 / 1;
-    perspective: 1200px;
-    cursor: grab;
-    touch-action: pan-y;
-  }
+.face img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
 
-  .scene:active {
-    cursor: grabbing;
-  }
-
-  .card {
-    width: 100%;
-    height: 100%;
-    position: relative;
-    transform-style: preserve-3d;
-    transform: rotateX(0deg) rotateY(0deg);
-    transition: transform 0.15s ease-out;
-  }
-
-  .card.auto-spin {
-    animation: spin 5s linear infinite;
-  }
-
-  @keyframes spin {
-    from {
-      transform: rotateX(0deg) rotateY(0deg);
-    }
-    to {
-      transform: rotateX(0deg) rotateY(360deg);
-    }
-  }
-
-  .face {
-    position: absolute;
-    inset: 0;
-    border-radius: 12px;
-    overflow: hidden;
-    background: #22222a;
-    border: 1px solid #ffffff35;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    box-shadow: 0 20px 55px #0008;
-  }
-
-  .face img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-    background: #22222a;
-  }
-
-  .back {
-    transform: rotateY(180deg);
-  }
-
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
-    padding: 0 16px;
-  }
-
-  .hint {
-    color: #aaaab5;
-    font-size: 13px;
-    text-align: center;
-    padding: 0 16px;
-  }
+.back {
+  transform: rotateY(180deg);
+}
 </style>
 </head>
 
 <body>
 
-<h1>My 3D Business Card</h1>
-
-<div class="upload-area">
-  <label>
-    Upload Front
-    <input type="file" id="frontUpload" accept="image/*">
-  </label>
-
-  <label>
-    Upload Back
-    <input type="file" id="backUpload" accept="image/*">
-  </label>
-</div>
-
-<div class="scene" id="scene">
-  <div class="card" id="card">
-
-    <div class="face front">
-      <img id="frontImage"
-           src="front.png"
-           alt="Front of business card">
-    </div>
-
-    <div class="face back">
-      <img id="backImage"
-           src="back.png"
-           alt="Back of business card">
-    </div>
-
+<div class="card" id="card">
+  <div class="face">
+    <img id="front" src="front.png" alt="">
+  </div>
+  <div class="face back">
+    <img id="back" src="back.png" alt="">
   </div>
 </div>
 
-<div class="controls">
-  <button id="flipBtn">Flip Card</button>
-  <button id="spinBtn">360° Spin</button>
-  <button id="resetBtn">Reset</button>
-</div>
-
-<p class="hint">
-  Drag the card to rotate it. Upload your designs above.
-</p>
-
 <script>
-  const card = document.getElementById("card");
-  const scene = document.getElementById("scene");
+const card = document.getElementById("card");
+const front = document.getElementById("front");
+const back = document.getElementById("back");
 
-  let rotateX = 0;
-  let rotateY = 0;
-  let dragging = false;
-  let lastX = 0;
-  let lastY = 0;
+let x = window.innerWidth / 2;
+let y = window.innerHeight / 2;
 
-  function updateRotation() {
-    card.style.transform =
-      `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-  }
+let rotationX = 0;
+let rotationY = 0;
 
-  // Upload the front and back designs
-  function loadImage(inputId, imageId) {
-    document.getElementById(inputId).addEventListener(
-      "change", function () {
-        const file = this.files[0];
-        if (!file) return;
+let dragging = false;
+let startX = 0;
+let startY = 0;
+let lastX = 0;
+let lastY = 0;
 
-        const imageURL = URL.createObjectURL(file);
-        const image = document.getElementById(imageId);
+function sizeCard() {
+  const width = front.naturalWidth || 900;
+  const height = front.naturalHeight || 500;
 
-        image.onload = () => URL.revokeObjectURL(imageURL);
-        image.src = imageURL;
-      }
-    );
-  }
+  // Fit the original image proportions on screen
+  const scale = Math.min(
+    1,
+    window.innerWidth * 0.85 / width,
+    window.innerHeight * 0.85 / height
+  );
 
-  loadImage("frontUpload", "frontImage");
-  loadImage("backUpload", "backImage");
+  card.style.width = `${width * scale}px`;
+  card.style.height = `${height * scale}px`;
 
-  // Flip 180 degrees
-  document.getElementById("flipBtn").onclick = () => {
-    card.classList.remove("auto-spin");
-    rotateY += 180;
-    updateRotation();
-  };
+  updateCard();
+}
 
-  // Continuously rotate through 360 degrees
-  document.getElementById("spinBtn").onclick = () => {
-    const spinning = card.classList.contains("auto-spin");
+function updateCard() {
+  card.style.left = `${x}px`;
+  card.style.top = `${y}px`;
+  card.style.transform =
+    `translate(-50%, -50%) rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
+}
 
-    card.classList.toggle("auto-spin", !spinning);
+front.addEventListener("load", sizeCard);
+back.addEventListener("load", sizeCard);
 
-    if (!spinning) {
-      card.style.transform = "";
-    } else {
-      rotateX = 0;
-      rotateY = 0;
-      updateRotation();
-    }
-  };
+if (front.complete && front.naturalWidth) sizeCard();
 
-  // Reset to the front
-  document.getElementById("resetBtn").onclick = () => {
-    card.classList.remove("auto-spin");
-    rotateX = 0;
-    rotateY = 0;
-    updateRotation();
-  };
+window.addEventListener("resize", sizeCard);
 
-  // Click and drag to rotate in 3D
-  scene.addEventListener("pointerdown", (e) => {
-    dragging = true;
-    lastX = e.clientX;
-    lastY = e.clientY;
-    scene.setPointerCapture(e.pointerId);
-    card.classList.remove("auto-spin");
-    card.style.transition = "none";
-  });
+card.addEventListener("pointerdown", (e) => {
+  dragging = true;
+  startX = e.clientX;
+  startY = e.clientY;
+  lastX = e.clientX;
+  lastY = e.clientY;
 
-  scene.addEventListener("pointermove", (e) => {
-    if (!dragging) return;
+  card.setPointerCapture(e.pointerId);
+});
 
-    const dx = e.clientX - lastX;
-    const dy = e.clientY - lastY;
+card.addEventListener("pointermove", (e) => {
+  if (!dragging) return;
 
-    rotateY += dx * 0.8;
-    rotateX -= dy * 0.8;
+  const dx = e.clientX - lastX;
+  const dy = e.clientY - lastY;
 
-    lastX = e.clientX;
-    lastY = e.clientY;
+  // Move the card across the white canvas
+  x += dx;
+  y += dy;
 
-    updateRotation();
-  });
+  // Rotate as you drag
+  rotationY += dx * 0.6;
+  rotationX -= dy * 0.6;
 
-  function stopDragging() {
-    dragging = false;
-    card.style.transition = "transform 0.15s ease-out";
-  }
+  lastX = e.clientX;
+  lastY = e.clientY;
 
-  scene.addEventListener("pointerup", stopDragging);
-  scene.addEventListener("pointercancel", stopDragging);
+  updateCard();
+});
+
+function stopDragging() {
+  dragging = false;
+}
+
+card.addEventListener("pointerup", stopDragging);
+card.addEventListener("pointercancel", stopDragging);
 </script>
 
 </body>
